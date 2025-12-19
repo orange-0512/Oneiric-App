@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 
-export default function Question1Page({ onNext, onUpdateNickname }) {
+export default function Question1Page({ onNext, onUpdateProfile }) {
   const [nickname, setNickname] = useState('');
 
   const handleNext = () => {
-    if (onUpdateNickname) {
-      onUpdateNickname(nickname);
+    if (nickname.trim()) {
+      if (onUpdateProfile) {
+        onUpdateProfile({ nickname: nickname.trim() });
+      }
+      onNext(nickname.trim());
     }
-    onNext(nickname);
   };
 
   return (

@@ -42,11 +42,16 @@ const calculateStats = (dreams, start, end) => {
     dateRangeLabels.push(format(d, 'MM/dd'));
   }
 
-  if (!dreams || dreams.length === 0) {
+  // Separate actual dreams from mood logs
+  const actualDreams = dreams.filter(d => !d.tags || !d.tags.includes('mood_log'));
+  const moodLogs = dreams.filter(d => d.tags && d.tags.includes('mood_log'));
+
+  // If no dreams AND no mood logs, return empty state
+  if ((!actualDreams || actualDreams.length === 0) && (!moodLogs || moodLogs.length === 0)) {
     return {
-      avgSleepDuration: 0,
-      dreamCount: 0,
-      dominantEmotion: '無',
+      avgSleepDuration: '-',
+      dreamCount: '-',
+      dominantEmotion: '-',
       moodTrend: new Array(daysDiff).fill(null),
       emotionDistribution: { positive: 0, neutral: 0, negative: 0 },
       topTags: [],
@@ -60,31 +65,36 @@ const calculateStats = (dreams, start, end) => {
     };
   }
 
-  // 1. Basic Counts
-  const dreamCount = dreams.length;
+  // 1. Basic Counts (Only actual dreams)
+  const dreamCount = actualDreams.length;
   
-  // 2. Sleep Duration
-  const totalDuration = dreams.reduce((sum, d) => sum + (d.duration || 0), 0);
-  const avgSleepDuration = (totalDuration / dreamCount).toFixed(1);
+  // 2. Sleep Duration (Only actual dreams)
+  const totalDuration = actualDreams.reduce((sum, d) => sum + (d.duration || 0), 0);
+  const avgSleepDuration = dreamCount > 0 ? (totalDuration / dreamCount).toFixed(1) : '-';
 
-  // 3. Emotion Distribution & Dominant Emotion
+  // 3. Emotion Distribution & Dominant Emotion (Only actual dreams for "Dream Emotion")
   const emotionCounts = { positive: 0, neutral: 0, negative: 0 };
-  dreams.forEach(d => {
+  const allMoods = [...actualDreams]; // Only use actual dreams for stats
+  
+  allMoods.forEach(d => {
     if (d.mood === 'positive' || d.mood === 'happy' || d.mood === 'excited') emotionCounts.positive++;
     else if (d.mood === 'negative' || d.mood === 'sad' || d.mood === 'scared' || d.mood === 'angry') emotionCounts.negative++;
     else emotionCounts.neutral++;
   });
   
-  const totalEmotions = dreamCount;
+  const totalEmotions = allMoods.length;
   const emotionDistribution = {
-    positive: Math.round((emotionCounts.positive / totalEmotions) * 100),
-    neutral: Math.round((emotionCounts.neutral / totalEmotions) * 100),
-    negative: Math.round((emotionCounts.negative / totalEmotions) * 100),
+    positive: totalEmotions > 0 ? Math.round((emotionCounts.positive / totalEmotions) * 100) : 0,
+    neutral: totalEmotions > 0 ? Math.round((emotionCounts.neutral / totalEmotions) * 100) : 0,
+    negative: totalEmotions > 0 ? Math.round((emotionCounts.negative / totalEmotions) * 100) : 0,
   };
 
-  let dominantEmotion = '平靜';
-  if (emotionCounts.positive > emotionCounts.neutral && emotionCounts.positive > emotionCounts.negative) dominantEmotion = '愉悅';
-  if (emotionCounts.negative > emotionCounts.positive && emotionCounts.negative > emotionCounts.neutral) dominantEmotion = '焦慮';
+  let dominantEmotion = '-';
+  if (totalEmotions > 0) {
+    dominantEmotion = '平靜';
+    if (emotionCounts.positive > emotionCounts.neutral && emotionCounts.positive > emotionCounts.negative) dominantEmotion = '愉悅';
+    if (emotionCounts.negative > emotionCounts.positive && emotionCounts.negative > emotionCounts.neutral) dominantEmotion = '焦慮';
+  }
 
   // 4. Mood Trend & Sleep Record
   const moodTrend = new Array(daysDiff).fill(null); 
@@ -95,19 +105,37 @@ const calculateStats = (dreams, start, end) => {
      sleepRecord[i] = { day: dateRangeLabels[i], duration: 0, emotion: 'neutral' };
   }
 
-  dreams.forEach(d => {
+  // Process Mood Trend (Prioritize mood logs, fallback to dreams)
+  // First, fill with mood logs
+  moodLogs.forEach(d => {
     const dreamDate = parseISO(d.created_at);
-    // Find index in range
+    const index = differenceInDays(dreamDate, start);
+    if (index >= 0 && index < daysDiff) {
+        let score = 2;
+        if (['positive', 'happy', 'excited'].includes(d.mood)) score = 3;
+        if (['negative', 'sad', 'scared', 'angry'].includes(d.mood)) score = 1;
+        moodTrend[index] = score;
+    }
+  });
+
+  // Then fill gaps with actual dreams if no mood log exists for that day
+  actualDreams.forEach(d => {
+    const dreamDate = parseISO(d.created_at);
     const index = differenceInDays(dreamDate, start);
     
     if (index >= 0 && index < daysDiff) {
-        // Mood Score: Positive=3, Neutral=2, Negative=1
-        let score = 2;
+        // Only update mood if not already set by mood log
+        if (moodTrend[index] === null) {
+            let score = 2;
+            if (['positive', 'happy', 'excited'].includes(d.mood)) score = 3;
+            if (['negative', 'sad', 'scared', 'angry'].includes(d.mood)) score = 1;
+            moodTrend[index] = score; 
+        }
+
+        // Sleep record always comes from actual dreams
         let emotionType = 'neutral';
-        if (['positive', 'happy', 'excited'].includes(d.mood)) { score = 3; emotionType = 'positive'; }
-        if (['negative', 'sad', 'scared', 'angry'].includes(d.mood)) { score = 1; emotionType = 'negative'; }
-        
-        moodTrend[index] = score; 
+        if (['positive', 'happy', 'excited'].includes(d.mood)) emotionType = 'positive';
+        if (['negative', 'sad', 'scared', 'angry'].includes(d.mood)) emotionType = 'negative';
 
         sleepRecord[index] = {
           day: dateRangeLabels[index],
@@ -117,12 +145,14 @@ const calculateStats = (dreams, start, end) => {
     }
   });
 
-  // 5. Top Tags
+  // 5. Top Tags (Only actual dreams)
   const tagCounts = {};
-  dreams.forEach(d => {
+  actualDreams.forEach(d => {
     if (d.tags && Array.isArray(d.tags)) {
       d.tags.forEach(tag => {
-        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        if (tag !== 'mood_log') { // Double check to exclude mood_log
+            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        }
       });
     }
   });
@@ -132,22 +162,32 @@ const calculateStats = (dreams, start, end) => {
     .map(([tag, count]) => ({ tag, count }));
 
   // 6. Mock AI Insight
-  const topTag = topTags.length > 0 ? topTags[0].tag : '無';
-  let summary = `此期間您記錄了 ${dreamCount} 個夢境，主要情緒為「${dominantEmotion}」。`;
-  let analysis = `夢境中頻繁出現「${topTag}」，顯示您近期潛意識中對此議題較為關注。`;
-  let suggestion = '建議您睡前可以聽一些輕音樂，幫助放鬆心情。';
+  let summary = '';
+  let analysis = '';
+  let suggestion = '';
 
-  if (dominantEmotion === '焦慮' || dominantEmotion === '驚恐') {
-    analysis += ' 情緒波動較大，可能與近期生活壓力有關。';
-    suggestion = '建議嘗試冥想或深呼吸練習，並減少睡前使用手機的時間。';
-  } else if (dominantEmotion === '愉悅') {
-    analysis += ' 整體情緒穩定且正向，顯示您的精神狀態良好。';
-    suggestion = '保持目前的作息，繼續探索有趣的夢境世界！';
+  if (dreamCount === 0 || dreamCount === '-') {
+      summary = `此期間尚未記錄夢境，但您有持續記錄心情。`;
+      analysis = `持續關注自己的情緒變化是很好的習慣。`;
+      suggestion = `試著在睡前記錄下當下的感受，或許能開啟夢境的大門。`;
+  } else {
+      const topTag = topTags.length > 0 ? topTags[0].tag : '無';
+      summary = `此期間您記錄了 ${dreamCount} 個夢境，主要情緒為「${dominantEmotion}」。`;
+      analysis = `夢境中頻繁出現「${topTag}」，顯示您近期潛意識中對此議題較為關注。`;
+      suggestion = '建議您睡前可以聽一些輕音樂，幫助放鬆心情。';
+
+      if (dominantEmotion === '焦慮' || dominantEmotion === '驚恐') {
+        analysis += ' 情緒波動較大，可能與近期生活壓力有關。';
+        suggestion = '建議嘗試冥想或深呼吸練習，並減少睡前使用手機的時間。';
+      } else if (dominantEmotion === '愉悅') {
+        analysis += ' 整體情緒穩定且正向，顯示您的精神狀態良好。';
+        suggestion = '保持目前的作息，繼續探索有趣的夢境世界！';
+      }
   }
 
   return {
     avgSleepDuration,
-    dreamCount,
+    dreamCount: dreamCount === 0 ? '-' : dreamCount,
     dominantEmotion,
     moodTrend, 
     emotionDistribution,

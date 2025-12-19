@@ -5,6 +5,7 @@ import { startOfWeek, endOfWeek } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadAvatar, updateAvatarUrl } from './services/userProfile';
 import { supabase } from './lib/supabase';
+import { saveDailyMood, getDailyMood } from './services/mood';
 
 const { width } = Dimensions.get('window');
 
@@ -23,22 +24,25 @@ import StatsPage from './StatsPage';
 import { getLatestDream } from './services/storage';
 import { getStats } from './services/stats';
 
-export default function HomePage({ userData, onNavigate, initialDreamId, newDream, lastDreamUpdate, onUpdateNickname, language, setLanguage, t, onLogout }) {
+export default function HomePage({ userData, onNavigate, initialDreamId, initialTab, newDream, lastDreamUpdate, onUpdateProfile, language, setLanguage, t, onLogout }) {
   const [currentDate, setCurrentDate] = useState('');
   const [quote, setQuote] = useState('');
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState(initialTab || 'home');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [diaryViewMode, setDiaryViewMode] = useState('list'); // 'list' or 'calendar'
   const [latestDream, setLatestDream] = useState(null);
   const [targetDreamId, setTargetDreamId] = useState(null);
   const [weeklyStats, setWeeklyStats] = useState(null);
+  const [todayMood, setTodayMood] = useState(null);
 
   useEffect(() => {
     if (initialDreamId) {
       setTargetDreamId(initialDreamId);
       setActiveTab('diary');
+    } else if (initialTab) {
+      setActiveTab(initialTab);
     }
-  }, [initialDreamId]);
+  }, [initialDreamId, initialTab]);
 
   const isToday = (date) => {
     const today = new Date();
@@ -73,6 +77,13 @@ export default function HomePage({ userData, onNavigate, initialDreamId, newDrea
       setWeeklyStats(stats);
     };
     fetchWeeklyStats();
+
+    // Fetch Today's Mood
+    const fetchMood = async () => {
+      const mood = await getDailyMood();
+      setTodayMood(mood);
+    };
+    fetchMood();
   }, [activeTab, newDream, lastDreamUpdate]); // Re-fetch when tab changes, new dream added, or dream updated
 
   const handleAvatarPress = async () => {
@@ -93,13 +104,9 @@ export default function HomePage({ userData, onNavigate, initialDreamId, newDrea
             const publicUrl = await uploadAvatar(user.id, imageUri);
             await updateAvatarUrl(user.id, publicUrl);
             
-            // Notify parent to refresh user data
-            if (onUpdateNickname) {
-               // We are hijacking this prop to trigger a refresh if possible, 
-               // or we should add a proper onUpdateProfile prop.
-               // For now, let's assume App.js passes a way to update user data.
-               // Since we don't have a direct setAvatarUrl, we might need to reload.
-               Alert.alert('成功', '頭像已更新');
+            // Update parent state
+            if (onUpdateProfile) {
+              onUpdateProfile({ avatar_url: publicUrl });
             }
           }
         } catch (error) {
@@ -110,6 +117,20 @@ export default function HomePage({ userData, onNavigate, initialDreamId, newDrea
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('錯誤', '無法開啟相簿');
+    }
+  };
+
+  const handleMoodSelect = async (mood) => {
+    setTodayMood(mood); // Optimistic update
+    const success = await saveDailyMood(mood, currentDate);
+    if (!success) {
+      Alert.alert('儲存失敗', '請稍後再試');
+    } else {
+      // Refresh stats if needed
+      const start = startOfWeek(new Date(), { weekStartsOn: 1 });
+      const end = endOfWeek(new Date(), { weekStartsOn: 1 });
+      const stats = await getStats(start, end);
+      setWeeklyStats(stats);
     }
   };
 
@@ -204,17 +225,17 @@ export default function HomePage({ userData, onNavigate, initialDreamId, newDrea
               }}
             >
               <View style={styles.cardLeft}>
-                {latestDream.generatedImage ? (
+                {latestDream.generatedImage === 'PENDING' ? (
+                  <View style={styles.generatingContainer}>
+                    <Image source={require('./assets/home_mascot.png')} style={styles.generatingMascot} resizeMode="contain" />
+                    <Text style={styles.generatingText}>靈感圖{'\n'}生成中</Text>
+                  </View>
+                ) : (
                   <Image 
-                    source={{ uri: latestDream.generatedImage }} 
+                    source={latestDream.generatedImage ? { uri: latestDream.generatedImage } : require('./assets/home_mascot.png')} 
                     style={styles.diaryImage} 
                     resizeMode="cover" 
                   />
-                ) : (
-                  <View style={styles.diaryPlaceholder}>
-                    <Image source={require('./assets/home_mascot.png')} style={styles.placeholderMascot} resizeMode="contain" />
-                    <Text style={styles.diaryPlaceholderText}>靈感圖{'\n'}生成中</Text>
-                  </View>
                 )}
               </View>
               
@@ -267,19 +288,27 @@ export default function HomePage({ userData, onNavigate, initialDreamId, newDrea
         <Text style={styles.sectionTitle}>{t.home_mood_title}</Text>
         <View style={styles.moodContainer}>
           {[
-            { label: t.home_mood_1, img: require('./assets/mood_1.png') },
-            { label: t.home_mood_2, img: require('./assets/mood_2.png') },
-            { label: t.home_mood_3, img: require('./assets/mood_3.png') },
-            { label: t.home_mood_4, img: require('./assets/mood_4.png') },
-            { label: t.home_mood_5, img: require('./assets/mood_5.png') }
-          ].map((item, index) => (
-            <View key={index} style={styles.moodItem}>
-              <View style={styles.moodCircle}>
-                <Image source={item.img} style={styles.moodImage} resizeMode="contain" />
-              </View>
-              <Text style={styles.moodLabel}>{item.label}</Text>
-            </View>
-          ))}
+            { label: t.home_mood_1, img: require('./assets/mood_1.png'), value: 'positive' },
+            { label: t.home_mood_2, img: require('./assets/mood_2.png'), value: 'happy' },
+            { label: t.home_mood_3, img: require('./assets/mood_3.png'), value: 'neutral' },
+            { label: t.home_mood_4, img: require('./assets/mood_4.png'), value: 'sad' },
+            { label: t.home_mood_5, img: require('./assets/mood_5.png'), value: 'negative' }
+          ].map((item, index) => {
+            const isSelected = todayMood === item.value;
+            return (
+              <TouchableOpacity 
+                key={index} 
+                style={styles.moodItem}
+                onPress={() => handleMoodSelect(item.value)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.moodCircle, isSelected && styles.moodCircleSelected]}>
+                  <Image source={item.img} style={styles.moodImage} resizeMode="contain" />
+                </View>
+                <Text style={[styles.moodLabel, isSelected && styles.moodLabelSelected]}>{item.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
       
@@ -334,11 +363,7 @@ export default function HomePage({ userData, onNavigate, initialDreamId, newDrea
                   </Text>
                 </View>
                 <TouchableOpacity style={styles.avatarContainer} onPress={handleAvatarPress}>
-                  {userData?.avatar_url ? (
-                    <Image source={{ uri: userData.avatar_url }} style={styles.avatar} />
-                  ) : (
-                    <Image source={require('./assets/default_avatar.png')} style={styles.avatar} />
-                  )}
+                  <Image source={require('./assets/default_avatar.png')} style={styles.avatar} />
                 </TouchableOpacity>
               </View>
           </View>
@@ -363,7 +388,7 @@ export default function HomePage({ userData, onNavigate, initialDreamId, newDrea
       {activeTab === 'settings' ? (
         <SettingsPage 
           userData={userData}
-          onUpdateNickname={onUpdateNickname}
+          onUpdateProfile={onUpdateProfile}
           onNavigate={onNavigate}
           language={language}
           setLanguage={setLanguage}
@@ -462,7 +487,7 @@ const styles = StyleSheet.create({
   },
   quoteBubble: {
     flex: 1,
-    backgroundColor: '#B9B4FF',
+    backgroundColor: '#BFB4DC', // Updated to #BFB4DC
     borderRadius: 20,
     padding: 16,
     borderBottomLeftRadius: 4,
@@ -495,7 +520,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: 'jf-openhuninn-2.0',
-    fontSize: 20,
+    fontSize: 16, // Reduced from 20
     color: '#000000',
     marginBottom: 12, // Reduced from 16
   },
@@ -512,9 +537,9 @@ const styles = StyleSheet.create({
   summaryCard: {
     flex: 1,
     borderRadius: 20,
-    padding: 16,
+    padding: 12, // Reduced from 16
     alignItems: 'center',
-    height: 100,
+    height: 85, // Reduced from 100
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -526,7 +551,7 @@ const styles = StyleSheet.create({
     fontFamily: 'jf-openhuninn-2.0',
     fontSize: 12,
     color: '#737373',
-    marginBottom: 8,
+    marginBottom: 4, // Reduced from 8
     textAlign: 'center',
   },
   summaryValue: {
@@ -535,7 +560,7 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   diaryCardEmpty: {
-    backgroundColor: '#B9B4FF',
+    backgroundColor: '#BFB4DC', // Updated to #BFB4DC
     borderRadius: 24,
     padding: 24,
     height: 180,
@@ -549,7 +574,7 @@ const styles = StyleSheet.create({
   diaryCardFilled: {
     backgroundColor: '#FFF1A8', // Yellow
     borderRadius: 24,
-    padding: 16,
+    padding: 12, // Reduced from 16
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -558,113 +583,67 @@ const styles = StyleSheet.create({
   },
   diaryContentRow: {
     flexDirection: 'row',
-    gap: 16,
+    minHeight: 120, // Ensure minimum height
+    position: 'relative', // For absolute positioning of cardLeft
   },
   diaryContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
   },
   diaryMascot: {
-    width: 80,
-    height: 80,
-    marginRight: 16,
+    width: 130,
+    height: 130,
+  },
+  generatingContainer: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+    backgroundColor: '#D1C4E9', // Light Purple background
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 4,
+  },
+  generatingMascot: {
+    width: 40,
+    height: 40,
+    marginBottom: 4,
+  },
+  generatingText: {
+    fontFamily: 'jf-openhuninn-2.0',
+    fontSize: 10,
+    color: '#737373',
+    textAlign: 'center',
+    lineHeight: 14,
   },
   diaryTextContainer: {
     alignItems: 'flex-start',
+    flex: 1, // Allow text container to take remaining space
   },
   diaryEmptyText: {
     fontFamily: 'jf-openhuninn-2.0',
-    fontSize: 16,
+    fontSize: 15, // Reduced from 18 to prevent wrapping
     color: '#FFFFFF',
-    marginBottom: 12,
+    marginBottom: 16, // Increased spacing
   },
   startRecordButton: {
     backgroundColor: '#FFF1A8',
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+    paddingVertical: 10, // Increased padding
+    paddingHorizontal: 24,
+    borderRadius: 24,
   },
   startRecordText: {
     fontFamily: 'jf-openhuninn-2.0',
-    fontSize: 14,
+    fontSize: 16, // Increased from 14
     color: '#000000',
   },
-  moodContainer: {
-    backgroundColor: '#BFB4DC', // Lavender background
-    borderRadius: 360,
-    padding: 12, // Reduced from 16
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  moodItem: {
-    alignItems: 'center',
-    gap: 6, // Reduced from 8
-  },
-  moodCircle: {
-    width: 36, // Reduced from 48
-    height: 36, // Reduced from 48
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  moodImage: {
-    width: '100%',
-    height: '100%',
-  },
-  moodLabel: {
-    fontFamily: 'jf-openhuninn-2.0',
-    fontSize: 10, // Reduced from 12 (assumed)
-    color: '#FFFFFF',
-  },
-
-  bottomNav: {
-    position: 'absolute',
-    bottom: 30, // Increased from 24
-    left: 24,
-    right: 24,
-    backgroundColor: '#7C4BFF', // Purple nav bar
-    borderRadius: 32,
-    height: 70, // Increased from 50
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    shadowColor: '#7C4BFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  navItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  navIcon: {
-    width: 24,
-    height: 24,
-  },
-  navIconSpecial: {
-    width: 40,
-    height: 40,
-  },
-  navLabel: {
-    fontFamily: 'jf-openhuninn-2.0',
-    fontSize: 10,
-    color: '#BFB4DC',
-    marginTop: 2,
-  },
-  navLabelActive: {
-    color: '#FFFFFF',
-  },
   cardLeft: {
-    width: 100,
-    height: 140,
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 90,
   },
   diaryImage: {
     width: '100%',
@@ -675,6 +654,7 @@ const styles = StyleSheet.create({
   cardRight: {
     flex: 1,
     justifyContent: 'space-between',
+    marginLeft: 102, // 90 (width) + 12 (gap)
   },
   dreamDate: {
     fontFamily: 'jf-openhuninn-2.0',
@@ -686,7 +666,7 @@ const styles = StyleSheet.create({
     fontFamily: 'jf-openhuninn-2.0',
     fontSize: 18,
     color: '#000000',
-    marginBottom: 4,
+    marginBottom: 2, // Reduced from 4
     lineHeight: 24,
   },
   dreamContent: {
@@ -694,7 +674,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#4A4A4A',
     lineHeight: 18,
-    marginBottom: 8,
+    marginBottom: 6, // Reduced from 8
   },
   bottomRow: {
     flexDirection: 'row',
@@ -757,5 +737,99 @@ const styles = StyleSheet.create({
   diaryControls: {
     flexDirection: 'row',
     gap: 16,
+  },
+  moodContainer: {
+    backgroundColor: '#BFB4DC', // Lavender background
+    borderRadius: 360,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'center', // Changed from space-between
+    gap: 20, // Added gap to control spacing
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  moodItem: {
+    alignItems: 'center',
+    gap: 6, // Reduced from 8
+  },
+  moodCircle: {
+    width: 36, // Reduced from 48
+    height: 36, // Reduced from 48
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  moodCircleSelected: {
+    borderColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  moodLabelSelected: {
+    fontWeight: 'bold',
+    color: '#FFF1A8',
+  },
+  moodImage: {
+    width: '100%',
+    height: '100%',
+  },
+  moodLabel: {
+    fontFamily: 'jf-openhuninn-2.0',
+    fontSize: 10, // Reduced from 12 (assumed)
+    color: '#FFFFFF',
+  },
+  bottomNav: {
+    position: 'absolute',
+    bottom: 30, // Increased from 24
+    left: 24,
+    right: 24,
+    backgroundColor: '#7C4BFF', // Purple nav bar
+    borderRadius: 32,
+    height: 70, // Increased from 50
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    shadowColor: '#7C4BFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  navItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  navIcon: {
+    width: 24,
+    height: 24,
+  },
+  navIconSpecial: {
+    width: 40,
+    height: 40,
+  },
+  navLabel: {
+    fontFamily: 'jf-openhuninn-2.0',
+    fontSize: 10,
+    color: '#BFB4DC',
+    marginTop: 2,
+  },
+  navLabelActive: {
+    color: '#FFFFFF',
+  },
+  addButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    marginTop: -20, // Lift up slightly
   },
 });

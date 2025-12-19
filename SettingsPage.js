@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, TextInput, TouchableWithoutFeedback, Keyboard, Modal } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, TextInput, TouchableWithoutFeedback, Keyboard, Modal, Share } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 
-export default function SettingsPage({ userData, onUpdateNickname, onNavigate, t, language, setLanguage, onLogout }) {
+export default function SettingsPage({ userData, onUpdateProfile, onNavigate, t, language, setLanguage, onLogout }) {
   const [activeModal, setActiveModal] = useState(null); // 'language', 'privacy', 'terms', 'rating', 'about', 'tagManagement'
   const [localNickname, setLocalNickname] = useState(userData?.nickname || '');
 
@@ -14,9 +14,31 @@ export default function SettingsPage({ userData, onUpdateNickname, onNavigate, t
 
   const handleNicknameSubmit = () => {
     if (localNickname !== userData?.nickname) {
-      onUpdateNickname(localNickname);
+      if (onUpdateProfile) {
+        onUpdateProfile({ nickname: localNickname });
+      }
     }
     Keyboard.dismiss();
+  };
+
+  const handleShare = async () => {
+    try {
+      const result = await Share.share({
+        message: '快來下載 Oneiric App，紀錄你的夢境！', // You can customize this message
+        // url: 'https://example.com', // Optional: Add app store link here
+      });
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          // shared with activity type of result.activityType
+        } else {
+          // shared
+        }
+      } else if (result.action === Share.dismissedAction) {
+        // dismissed
+      }
+    } catch (error) {
+      alert(error.message);
+    }
   };
 
   const menuItems = [
@@ -26,7 +48,6 @@ export default function SettingsPage({ userData, onUpdateNickname, onNavigate, t
     { label: t.settings_terms, icon: 'file-text', action: () => setActiveModal('terms') },
     { label: t.settings_rating, icon: 'star', action: () => {} },
     { label: t.settings_about, icon: 'info', action: () => {} },
-    { label: '登出', icon: 'log-out', action: onLogout },
   ];
 
   const privacyPolicyText = `...`; 
@@ -123,11 +144,7 @@ export default function SettingsPage({ userData, onUpdateNickname, onNavigate, t
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {/* Header Section */}
           <View style={styles.header}>
-            <View style={styles.mascotContainer}>
-              <Image source={require('./assets/home_mascot.png')} style={styles.mascot} resizeMode="contain" />
-            </View>
-            <Image source={require('./assets/logo_text.png')} style={styles.logoText} resizeMode="contain" />
-            <Text style={styles.version}>{t.settings_version}</Text>
+            <Image source={require('./assets/settings_logo.png')} style={styles.settingsLogo} resizeMode="contain" />
           </View>
 
           {/* Nickname Section */}
@@ -146,27 +163,40 @@ export default function SettingsPage({ userData, onUpdateNickname, onNavigate, t
           {/* Menu List */}
           <View style={styles.menuContainer}>
             {menuItems.map((item, index) => (
-              <TouchableOpacity key={index} style={styles.menuItem} onPress={item.action}>
-                <View style={styles.menuItemLeft}>
-                  <View style={styles.iconCircle} />
-                  <Text style={styles.menuLabel}>{item.label}</Text>
-                </View>
-                <Feather name="chevron-right" size={24} color="#737373" />
-              </TouchableOpacity>
+              <React.Fragment key={index}>
+                <TouchableOpacity style={styles.menuItem} onPress={item.action}>
+                  <View style={styles.menuItemLeft}>
+                    <View style={styles.iconCircle} />
+                    <Text style={styles.menuLabel}>{item.label}</Text>
+                  </View>
+                  <Feather name="chevron-right" size={20} color="#737373" />
+                </TouchableOpacity>
+                {index < menuItems.length - 1 && <View style={styles.menuSeparator} />}
+              </React.Fragment>
             ))}
           </View>
 
           {/* Share Card */}
-          <View style={styles.shareCard}>
-            <View style={styles.shareContent}>
-              <Image source={require('./assets/home_mascot.png')} style={styles.shareMascotLeft} resizeMode="contain" />
-              <Text style={styles.shareText}>{t.settings_share}</Text>
-               <Image source={require('./assets/home_mascot.png')} style={styles.shareMascotRight} resizeMode="contain" />
-            </View>
+          <TouchableOpacity style={styles.shareCard} onPress={handleShare}>
+            <Image source={require('./assets/share_banner.png')} style={styles.shareBanner} resizeMode="cover" />
+          </TouchableOpacity>
+
+          {/* Logout Button */}
+          <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
+            <Text style={styles.logoutText}>登出</Text>
+          </TouchableOpacity>
+          
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>關於</Text>
+            <Text style={styles.footerText}>版本 1.0.0</Text>
+            <View style={styles.footerSpacer} />
+            <Text style={styles.footerCopyright}>© 2025 Oneiric</Text>
+            <Text style={styles.footerCopyright}>Creative Commons Attribution 4.0</Text>
           </View>
           
           {/* Bottom Spacer */}
-          <View style={{ height: 100 }} />
+          <View style={{ height: 40 }} />
         </ScrollView>
 
         {/* Modals */}
@@ -185,27 +215,16 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 24,
-    paddingTop: 60,
+    paddingTop: 40, // Reduced from 60
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24, // Reduced from 32
   },
-  mascotContainer: {
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-  },
-  mascot: {
-    width: 100,
-    height: 100,
-  },
-  logoText: {
-    width: 120, // Adjust width as needed based on image aspect ratio
-    height: 40,
-    marginBottom: 8,
+  settingsLogo: {
+    width: 126, // Reduced by 30% from 180
+    height: 126,
+    marginBottom: 0,
   },
   version: {
     fontFamily: 'jf-openhuninn-2.0',
@@ -237,7 +256,7 @@ const styles = StyleSheet.create({
   menuContainer: {
     backgroundColor: '#E8E3D5', // Beige container
     borderRadius: 32,
-    paddingVertical: 16,
+    paddingVertical: 8, // Reduced vertical padding for container
     paddingHorizontal: 24,
     marginBottom: 24,
   },
@@ -245,7 +264,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 12, // Reduced padding
+  },
+  menuSeparator: {
+    height: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)', // Very light grey separator
+    width: '100%',
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -264,34 +288,14 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   shareCard: {
-    backgroundColor: '#E8E3D5',
     borderRadius: 32,
-    padding: 24,
     height: 180,
-    justifyContent: 'center',
+    overflow: 'hidden', // Ensure image respects border radius
+    marginBottom: 8,
   },
-  shareContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    position: 'relative',
-  },
-  shareText: {
-    fontFamily: 'jf-openhuninn-2.0',
-    fontSize: 18,
-    color: '#000000',
-    zIndex: 1,
-    textAlign: 'center',
-    flex: 1,
-  },
-  shareMascotLeft: {
-    width: 80,
-    height: 80,
-  },
-  shareMascotRight: {
-    width: 80,
-    height: 80,
-    transform: [{ scaleX: -1 }], // Flip image
+  shareBanner: {
+    width: '100%',
+    height: '100%',
   },
   // Modal Styles
   modalOverlay: {
@@ -358,5 +362,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FFFFFF',
     lineHeight: 22,
+  },
+  logoutButton: {
+    marginTop: 24,
+    backgroundColor: '#7C4BFF', // Purple background
+    paddingVertical: 16,
+    borderRadius: 30, // Pill shape
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+    marginHorizontal: 24, // Add horizontal margin if needed, or rely on container padding
+  },
+  logoutText: {
+    fontFamily: 'jf-openhuninn-2.0',
+    fontSize: 18,
+    color: '#FFFFFF', // White text
+    fontWeight: 'bold',
+  },
+  footer: {
+    marginTop: 40,
+    alignItems: 'center',
+    paddingBottom: 20,
+  },
+  footerText: {
+    fontFamily: 'jf-openhuninn-2.0',
+    fontSize: 14,
+    color: '#737373',
+    marginBottom: 4,
+  },
+  footerSpacer: {
+    height: 16,
+  },
+  footerCopyright: {
+    fontFamily: 'jf-openhuninn-2.0',
+    fontSize: 12,
+    color: '#A3A3A3',
+    marginBottom: 2,
   },
 });

@@ -55,6 +55,7 @@ export const getDreams = async () => {
     const { data, error } = await supabase
       .from('dreams')
       .select('*')
+      .not('tags', 'cs', '{"mood_log"}') // Exclude mood_log
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -79,6 +80,7 @@ export const getLatestDream = async () => {
     const { data, error } = await supabase
       .from('dreams')
       .select('*')
+      .not('tags', 'cs', '{"mood_log"}') // Exclude mood_log
       .order('created_at', { ascending: false })
       .limit(1)
       .single();

@@ -99,8 +99,8 @@ export default function App() {
     }
   };
 
-  const handleUpdateNickname = (nickname) => {
-    setUserData(prev => ({ ...prev, nickname }));
+  const handleUpdateProfile = (updates) => {
+    setUserData(prev => ({ ...prev, ...updates }));
   };
 
   const handleSaveDream = (dreamId, summary, isEditing) => {
@@ -140,7 +140,11 @@ export default function App() {
         
         // Use profile nickname if available, otherwise fallback
         const displayNickname = profile?.nickname || user.email?.split('@')[0];
-        setUserData(prev => ({ ...prev, nickname: displayNickname }));
+        setUserData(prev => ({ 
+          ...prev, 
+          nickname: displayNickname,
+          avatar_url: profile?.avatar_url 
+        }));
         
         if (profile && profile.onboarding_completed) {
           // Skip onboarding
@@ -239,7 +243,7 @@ export default function App() {
             updateOnboardingAnswer('q1', answer);
             navigateTo('question2');
           }}
-          onUpdateNickname={handleUpdateNickname}
+          onUpdateProfile={handleUpdateProfile}
         />;
       
       case 'question2':
@@ -279,9 +283,10 @@ export default function App() {
           userData={userData} 
           onNavigate={(screen, params) => navigateTo(screen, params)} 
           initialDreamId={screenParams.initialDreamId}
+          initialTab={screenParams.initialTab}
           newDream={screenParams.newDream}
           lastDreamUpdate={lastDreamUpdate}
-          onUpdateNickname={handleUpdateNickname}
+          onUpdateProfile={handleUpdateProfile}
           language={language}
           setLanguage={setLanguage}
           t={t}
@@ -290,7 +295,7 @@ export default function App() {
       
       case 'tagManagement':
         return <TagManagementPage 
-          onBack={() => navigateTo('home')}
+          onBack={() => navigateTo('home', { initialTab: 'settings' })}
           t={t}
         />;
       

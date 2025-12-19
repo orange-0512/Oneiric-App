@@ -241,7 +241,8 @@ export default function RecordDreamPage({ onBack, onSave, initialData }) {
         sleepTime: sleepTime ? sleepTime.toISOString() : null,
         wakeTime: wakeTime ? wakeTime.toISOString() : null,
         duration: calculateDuration(),
-        generatedImage: generatedImage,
+        duration: calculateDuration(),
+        generatedImage: generatedImage || 'PENDING',
       };
       
       let savedDream;

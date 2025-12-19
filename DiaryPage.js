@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshCon
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { getDreams, toggleDreamFavorite, deleteDream, seedDreams } from './services/storage';
+import { format } from 'date-fns';
 
 const { width } = Dimensions.get('window');
 
@@ -166,17 +167,22 @@ export default function DiaryPage({ showFavoritesOnly, viewMode = 'list', onView
           <TouchableOpacity 
             style={styles.dreamThumbnail}
             onPress={() => {
-              // Open Detail Modal
               setSelectedDream(hasDream);
               setDetailModalVisible(true);
             }}
           >
-             <Image 
-               source={hasDream.generatedImage ? { uri: hasDream.generatedImage } : require('./assets/home_mascot.png')} 
-               style={styles.thumbnailImage} 
-               resizeMode="cover" 
-             />
-          </TouchableOpacity>
+              {hasDream.generatedImage === 'PENDING' ? (
+                <View style={styles.generatingThumbnail}>
+                  <Image source={require('./assets/home_mascot.png')} style={styles.generatingMascotSmall} resizeMode="contain" />
+                </View>
+              ) : (
+                <Image 
+                  source={hasDream.generatedImage ? { uri: hasDream.generatedImage } : require('./assets/home_mascot.png')} 
+                  style={styles.thumbnailImage} 
+                  resizeMode="cover" 
+                />
+              )}
+           </TouchableOpacity>
         ) : (
            <Text style={styles.dayNumber}>{day.getDate()}</Text>
         )}
@@ -225,18 +231,27 @@ export default function DiaryPage({ showFavoritesOnly, viewMode = 'list', onView
               >
                 {/* Left: Image */}
                 <View style={styles.cardLeft}>
-                   <Image
-                     source={dream.generatedImage ? { uri: dream.generatedImage } : require('./assets/home_mascot.png')}
-                     style={styles.cardImage}
-                     resizeMode="cover"
-                   />
+                   {dream.generatedImage === 'PENDING' ? (
+                     <View style={styles.generatingContainer}>
+                       <Image source={require('./assets/home_mascot.png')} style={styles.generatingMascot} resizeMode="contain" />
+                       <Text style={styles.generatingText}>靈感圖{'\n'}生成中</Text>
+                     </View>
+                   ) : (
+                     <Image
+                       source={dream.generatedImage ? { uri: dream.generatedImage } : require('./assets/home_mascot.png')}
+                       style={styles.cardImage}
+                       resizeMode="cover"
+                     />
+                   )}
                 </View>
 
                 {/* Right: Content */}
                 <View style={styles.cardRight}>
                   {/* Header: Date & Mood */}
                   <View style={styles.cardHeaderRow}>
-                    <Text style={styles.dreamDate}>{dream.date.match(/^[\d\s\/]+/)[0].trim()}</Text>
+                    <Text style={styles.dreamDate}>
+                      {dream.date ? dream.date.match(/^[\d\s\/]+/)[0].trim() : format(new Date(dream.createdAt), 'yyyy / MM / dd')}
+                    </Text>
                   </View>
 
                   {/* Title */}
@@ -325,7 +340,9 @@ export default function DiaryPage({ showFavoritesOnly, viewMode = 'list', onView
                 <>
                   {/* Header */}
                   <View style={styles.modalHeader}>
-                    <Text style={styles.modalDate}>{selectedDream.date.match(/^[\d\s\/]+/)[0].trim()}</Text>
+                    <Text style={styles.modalDate}>
+                      {selectedDream.date ? selectedDream.date.match(/^[\d\s\/]+/)[0].trim() : format(new Date(selectedDream.createdAt), 'yyyy / MM / dd')}
+                    </Text>
                     <View style={styles.modalMoodTag}>
                        <Text style={styles.modalMoodText}>
                          {selectedDream.mood === 'positive' ? '正向' : selectedDream.mood === 'negative' ? '負面' : '中性'}
@@ -489,6 +506,26 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#E8E2D2',
   },
+  generatingContainer: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+    backgroundColor: '#7C4BFF', // Purple
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  generatingMascot: {
+    width: '40%',
+    height: '40%',
+    marginBottom: 8,
+  },
+  generatingText: {
+    fontFamily: 'jf-openhuninn-2.0',
+    fontSize: 14,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   cardRight: {
     flex: 1,
     justifyContent: 'space-between',
@@ -611,6 +648,17 @@ const styles = StyleSheet.create({
   thumbnailImage: {
     width: '100%',
     height: '100%',
+  },
+  generatingThumbnail: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#7C4BFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  generatingMascotSmall: {
+    width: '70%',
+    height: '70%',
   },
   filterHeader: {
     flexDirection: 'row',
