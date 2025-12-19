@@ -6,13 +6,16 @@ export const generateDreamSummary = async (audioUri) => {
     console.log('GEMINI_API_KEY exists:', !!GEMINI_API_KEY);
     console.log('GEMINI_API_KEY length:', GEMINI_API_KEY?.length);
     
+    console.log('Reading file...');
     const base64Audio = await FileSystem.readAsStringAsync(audioUri, {
       encoding: 'base64',
     });
+    console.log('File read, base64 length:', base64Audio.length);
 
+    console.log('Calling Gemini API (2.5-flash v1beta)...');
     // IMPORTANT: Gemini API key goes in query string, NOT in Authorization header
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
@@ -38,7 +41,9 @@ export const generateDreamSummary = async (audioUri) => {
       }
     );
 
+    console.log('Gemini API response status:', response.status);
     const data = await response.json();
+    console.log('Gemini API response data:', JSON.stringify(data).substring(0, 500));
     
     if (data.error) {
       console.error('Gemini API Error:', data.error);

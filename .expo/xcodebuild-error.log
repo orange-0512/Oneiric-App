@@ -1,0 +1,6 @@
+2025-12-19 16:21:10.826 xcodebuild[83539:9098168] Writing error result bundle to /var/folders/21/q0mfgkmj0p77hvvdccb3f7dh0000gn/T/ResultBundle_2025-19-12_16-21-0010.xcresult
+xcodebuild: error: Unable to find a destination matching the provided destination specifier:
+		{ id:84977045-5B7E-4E06-81C4-B285159529FD }
+
+	Ineligible destinations for the "Oneiric" scheme:
+		{ platform:iOS, id:dvtdevice-DVTiPhonePlaceholder-iphoneos:placeholder, name:Any iOS Device, error:iOS 26.1 is not installed. Please download and install the platform from Xcode > Settings > Components. }

@@ -1,0 +1,3 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -workspace /Users/orange/.gemini/antigravity/scratch/oneiric-app/ios/Oneiric.xcworkspace -configuration Debug -scheme Oneiric -destination id=84977045-5B7E-4E06-81C4-B285159529FD
+
