@@ -542,6 +542,7 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 16,
     alignItems: 'flex-start',
+    marginTop: 35,
   },
   backButton: {
     paddingVertical: 8,

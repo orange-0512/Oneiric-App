@@ -6,11 +6,7 @@ import { useFonts } from 'expo-font';
 import { KaiseiTokumin_700Bold } from '@expo-google-fonts/kaisei-tokumin';
 
 import OpeningAnimation from './OpeningAnimation';
-import WelcomePage from './WelcomePage';
-import WelcomePage2 from './WelcomePage2';
-import WelcomePage3 from './WelcomePage3';
-import WelcomePage4 from './WelcomePage4';
-import WelcomePage5 from './WelcomePage5';
+
 import SignInPage from './SignInPage';
 
 import SignUpPage from './SignUpPage';
@@ -34,6 +30,7 @@ import { translations } from './i18n/translations';
 import { generateDreamImage } from './services/huggingface';
 import { getUserProfile, createUserProfile, completeOnboarding, updateUserProfile } from './services/userProfile';
 import { updateDream } from './services/storage';
+import { supabase } from './lib/supabase';
 
 // ... imports
 
@@ -46,7 +43,7 @@ export default function App() {
   });
 
   const [userData, setUserData] = useState({ nickname: 'User Name' });
-  const [currentScreen, setCurrentScreen] = useState('signin');
+  const [currentScreen, setCurrentScreen] = useState('opening');
   const [screenParams, setScreenParams] = useState({});
   const [lastDreamUpdate, setLastDreamUpdate] = useState(Date.now());
   
@@ -151,12 +148,12 @@ export default function App() {
           navigateTo('home');
         } else {
           // Start onboarding
-          navigateTo('intro1');
+          navigateTo('question1');
         }
       } catch (error) {
         console.error('Error checking profile:', error);
         // Fallback to intro if error
-        navigateTo('intro1');
+        navigateTo('question1');
       }
     }
   };
@@ -196,22 +193,7 @@ export default function App() {
   const renderScreen = () => {
     switch (currentScreen) {
       case 'opening':
-        return <OpeningAnimation onComplete={() => navigateTo('welcome')} />;
-      
-      case 'welcome':
-        return <WelcomePage onNext={() => navigateTo('welcome2')} />;
-      
-      case 'welcome2':
-        return <WelcomePage2 onNext={() => navigateTo('welcome3')} />;
-      
-      case 'welcome3':
-        return <WelcomePage3 onNext={() => navigateTo('welcome4')} />;
-      
-      case 'welcome4':
-        return <WelcomePage4 onNext={() => navigateTo('welcome5')} />;
-      
-      case 'welcome5':
-        return <WelcomePage5 onNext={() => navigateTo('signin')} />;
+        return <OpeningAnimation onComplete={() => navigateTo('intro1')} />;
       
       case 'signin':
         return <SignInPage
@@ -235,7 +217,7 @@ export default function App() {
         return <IntroPage3 onNext={() => navigateTo('intro4')} />;
       
       case 'intro4':
-        return <IntroPage4 onNext={() => navigateTo('question1')} />;
+        return <IntroPage4 onNext={() => navigateTo('signin')} />;
       
       case 'question1':
         return <Question1Page
