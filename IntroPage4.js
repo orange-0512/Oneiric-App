@@ -1,37 +1,29 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Image, SafeAreaView, TouchableOpacity } from 'react-native';
 
 export default function IntroPage4({ onNext }) {
-  // Note: This page has a button, so maybe no auto-navigation?
-  // User said "welcome page1 接welcome page3 再接welcome page5 接welcome page6"
-  // and "各自設定after delay 500ms".
-  // But page 6 has a "Start" button. Usually the last page waits for user action.
-  // I will assume the delay applies to transitions TO this page, or maybe this page also auto-advances?
-  // Given the button "開始拾夢！", it implies manual interaction.
-  // I will NOT add auto-navigation for this final page unless clarified.
-  // Wait, "welcome page1 接welcome page3 再接welcome page5 接welcome page6"
-  // It implies 1->3 (500ms), 3->5 (500ms), 5->6 (500ms).
-  // Page 6 is the end.
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.contentContainer}>
-        <View style={styles.card}>
-          <View style={styles.textContainer}>
-            <Text style={styles.text}>相信你準備好</Text>
-            <Text style={styles.text}>開始了！</Text>
-          </View>
-          
+        
+        <View style={styles.topSection}>
+          <Text style={styles.text}>相信你準備好開始了！</Text>
+        </View>
+        
+        <View style={styles.imageContainer}>
           <Image 
-            source={require('./assets/intro_4.png')} 
+            source={require('./assets/intro_4_ready.png')} 
             style={styles.image} 
             resizeMode="contain"
           />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={onNext}>
-          <Text style={styles.buttonText}>開始拾夢！</Text>
-        </TouchableOpacity>
+        <View style={styles.bottomSection}>
+          <TouchableOpacity style={styles.button} onPress={onNext}>
+            <Text style={styles.buttonText}>開始拾夢！</Text>
+          </TouchableOpacity>
+        </View>
+        
       </View>
     </SafeAreaView>
   );
@@ -40,50 +32,56 @@ export default function IntroPage4({ onNext }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E8E3D5', // Beige background
+    backgroundColor: '#C8BFE7', // Light Purple matching the design
   },
   contentContainer: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 80,
-    paddingBottom: 80,
-    justifyContent: 'space-between', // Distribute space
-    gap: 30,
+    paddingHorizontal: 24,
+    justifyContent: 'space-between',
+    paddingVertical: 60,
   },
-  card: {
-    flex: 1, // Take remaining space
-    backgroundColor: '#bfb4dc', // Purple
-    borderRadius: 52,
+  topSection: {
     alignItems: 'center',
-    justifyContent: 'center', // Center content vertically in card
-    width: '100%',
-  },
-  textContainer: {
-    alignItems: 'center',
-    marginBottom: 40, // Space between text and image
+    marginTop: 80,
   },
   text: {
     fontFamily: 'jf-openhuninn-2.0',
-    fontSize: 28,
-    color: '#ffffff',
+    fontSize: 24,
+    color: '#FFFFFF',
     textAlign: 'center',
-    lineHeight: 40,
+    letterSpacing: 1,
+  },
+  imageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   image: {
-    width: 250,
-    height: 250,
+    width: 300,
+    height: 300,
+  },
+  bottomSection: {
+    marginBottom: 40,
   },
   button: {
-    backgroundColor: '#ffe888', // Yellow
-    borderRadius: 10,
-    height: 88, // Fixed height from spec/visual
+    backgroundColor: '#FFE888', // Yellow
+    borderRadius: 16,
+    height: 56,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   buttonText: {
     fontFamily: 'jf-openhuninn-2.0',
-    fontSize: 16,
+    fontSize: 18,
     color: '#000000',
   },
 });

@@ -166,7 +166,6 @@ export default function SettingsPage({ userData, onUpdateProfile, onNavigate, t,
               <React.Fragment key={index}>
                 <TouchableOpacity style={styles.menuItem} onPress={item.action}>
                   <View style={styles.menuItemLeft}>
-                    <View style={styles.iconCircle} />
                     <Text style={styles.menuLabel}>{item.label}</Text>
                   </View>
                   <Feather name="chevron-right" size={20} color="#737373" />

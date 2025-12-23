@@ -8,6 +8,8 @@ import { saveDream, updateDream } from './services/storage';
 import { generateDreamImage } from './services/replicate';
 import { Image, ActivityIndicator } from 'react-native';
 import { supabase } from './lib/supabase';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system';
 
 export default function RecordDreamPage({ onBack, onSave, initialData }) {
   const [dreamTitle, setDreamTitle] = useState('');
@@ -227,6 +229,45 @@ export default function RecordDreamPage({ onBack, onSave, initialData }) {
     }
   };
 
+  const handleLongPressImage = async () => {
+    if (!generatedImage) return;
+
+    Alert.alert(
+      "儲存圖片",
+      "是否將此夢境繪圖儲存至相簿？",
+      [
+        { text: "取消", style: "cancel" },
+        { 
+          text: "儲存", 
+          onPress: async () => {
+            try {
+              const { status } = await MediaLibrary.requestPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert("權限不足", "需要相簿權限才能儲存圖片");
+                return;
+              }
+
+              let uriToSave = generatedImage;
+              
+              // If it's a remote URL, download it first
+              if (generatedImage.startsWith('http')) {
+                const fileUri = FileSystem.documentDirectory + 'dream_image_' + Date.now() + '.jpg';
+                const { uri } = await FileSystem.downloadAsync(generatedImage, fileUri);
+                uriToSave = uri;
+              }
+
+              await MediaLibrary.saveToLibraryAsync(uriToSave);
+              Alert.alert("成功", "圖片已儲存至相簿");
+            } catch (error) {
+              console.error("Save image error:", error);
+              Alert.alert("錯誤", "儲存圖片失敗");
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleSave = async () => {
     try {
       const dreamData = {
@@ -411,7 +452,34 @@ export default function RecordDreamPage({ onBack, onSave, initialData }) {
               scrollEnabled={false} // Let the view expand
             />
           </View>
-
+          <View style={styles.imageSection}>
+            {generatedImage ? (
+              <View style={styles.generatedImageContainer}>
+                <TouchableOpacity onLongPress={handleLongPressImage} activeOpacity={0.9}>
+                  <Image source={{ uri: generatedImage }} style={styles.generatedImage} resizeMode="cover" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.regenerateButton} onPress={handleGenerateImage}>
+                  <Feather name="refresh-cw" size={12} color="#FFF" />
+                  <Text style={styles.regenerateText}>重新生成</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.generateButton} 
+                onPress={handleGenerateImage}
+                disabled={isGeneratingImage}
+              >
+                {isGeneratingImage ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <>
+                    <Feather name="image" size={16} color="#FFF" />
+                    <Text style={styles.generateButtonText}>AI 生成夢境繪圖</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
 
 
 

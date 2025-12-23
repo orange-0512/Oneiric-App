@@ -12,8 +12,8 @@ export const generateDreamImage = async (prompt) => {
     console.log("Generating image with Hugging Face for prompt:", prompt);
     console.log("HF_TOKEN exists:", !!HUGGINGFACE_API_TOKEN);
     
-    const enhancedPrompt = `A surreal, abstract, dreamlike illustration of: ${prompt}. Soft pastel colors, ethereal atmosphere, artistic style, non-photorealistic, high quality, whimsical, fantasy art.`;
-    
+    const enhancedPrompt = `Contemporary character illustration inspired by ${prompt}, simple rounded forms, soft gradient lighting, grainy airbrush texture, dreamy and calm atmosphere, minimal facial features, playful and warm mood, modern editorial illustration style, flat yet dimensional, no realism, no oil painting, no anime`;
+
     // IMPORTANT: HuggingFace uses Bearer token authentication
     const response = await fetch(API_URL, {
       method: 'POST',
@@ -24,7 +24,7 @@ export const generateDreamImage = async (prompt) => {
       body: JSON.stringify({
         inputs: enhancedPrompt,
         parameters: {
-          negative_prompt: "realistic, photographic, ugly, blurry, low quality",
+          negative_prompt: "oil painting, impasto, brushstrokes, canvas texture, ukiyo-e, Japanese woodblock, traditional art, realistic lighting, photorealism, anime, manga, comic style",
           num_inference_steps: 30,
           guidance_scale: 7.5,
         }
