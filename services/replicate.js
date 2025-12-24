@@ -20,8 +20,8 @@ export const generateDreamImage = async (prompt) => {
       body: JSON.stringify({
         version: "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b", // SDXL
         input: {
-          prompt: "Contemporary character illustration inspired by " + prompt + ", simple rounded forms, soft gradient lighting, grainy airbrush texture, dreamy and calm atmosphere, minimal facial features, playful and warm mood, modern editorial illustration style, flat yet dimensional, no realism, no oil painting, no anime",
-          negative_prompt: "oil painting, impasto, brushstrokes, canvas texture, ukiyo-e, Japanese woodblock, traditional art, realistic lighting, photorealism, anime, manga, comic style",
+          prompt: "Painterly oil artwork of " + prompt + ", impasto brushstrokes, rich texture, vibrant colors, expressive style, fantasy art, surrealism, detailed canvas texture, masterpiece, dreamlike quality",
+          negative_prompt: "photographic, 3d render, vector art, flat design, minimalist, cartoon, anime, low quality, blurry, watermark, text",
           width: 1024,
           height: 1024,
           refine: "expert_ensemble_refiner",

@@ -27,6 +27,8 @@ export const getStats = async (startDate, endDate) => {
 
     if (error) throw error;
 
+    if (error) throw error;
+
     return calculateStats(dreams, start, end);
   } catch (error) {
     console.error('Error fetching stats:', error);
@@ -107,39 +109,53 @@ const calculateStats = (dreams, start, end) => {
 
   // Process Mood Trend (Prioritize mood logs, fallback to dreams)
   // First, fill with mood logs
-  moodLogs.forEach(d => {
+  // Process Mood Trend - Use the LAST record of the day
+  dreams.forEach(d => {
     const dreamDate = parseISO(d.created_at);
     const index = differenceInDays(dreamDate, start);
+    
     if (index >= 0 && index < daysDiff) {
+        // Always overwrite to ensure the last record of the day determines the mood
         let score = 2;
         if (['positive', 'happy', 'excited'].includes(d.mood)) score = 3;
         if (['negative', 'sad', 'scared', 'angry'].includes(d.mood)) score = 1;
         moodTrend[index] = score;
+
+        // Sleep record logic - only if it's an actual dream (not a mood log)
+        if (!d.tags || !d.tags.includes('mood_log')) {
+             let emotionType = 'neutral';
+             if (['positive', 'happy', 'excited'].includes(d.mood)) emotionType = 'positive';
+             if (['negative', 'sad', 'scared', 'angry'].includes(d.mood)) emotionType = 'negative';
+
+             // If there are multiple dreams in a day, this logic might over-write previous sleep duration 
+             // or should we sum them? The previous logic was also overwriting or just taking one.
+             // Given it's a "Sleep Record", usually there is one main sleep per day. 
+             // Let's stick to overwriting for now or maybe summing duration if needed, 
+             // but user request was specifically about "Mood Trend". 
+             // Re-using the same loop for efficiency.
+             
+             // Actually, looking at previous logic: it was processing actualDreams separate for sleepRecord.
+             // Let's keep sleepRecord logic safe.
+        }
     }
   });
 
-  // Then fill gaps with actual dreams if no mood log exists for that day
+  // Re-calculate Sleep Record separately to ensure we strictly use actualDreams and handle multiple dreams properly if needed
+  // (Previous logic was just taking the last one too effectively for sleepRecord if multiple existed, 
+  // explicitly: actualDreams.forEach... sleepRecord[index] = ...)
+  
   actualDreams.forEach(d => {
     const dreamDate = parseISO(d.created_at);
     const index = differenceInDays(dreamDate, start);
     
     if (index >= 0 && index < daysDiff) {
-        // Only update mood if not already set by mood log
-        if (moodTrend[index] === null) {
-            let score = 2;
-            if (['positive', 'happy', 'excited'].includes(d.mood)) score = 3;
-            if (['negative', 'sad', 'scared', 'angry'].includes(d.mood)) score = 1;
-            moodTrend[index] = score; 
-        }
-
-        // Sleep record always comes from actual dreams
         let emotionType = 'neutral';
         if (['positive', 'happy', 'excited'].includes(d.mood)) emotionType = 'positive';
         if (['negative', 'sad', 'scared', 'angry'].includes(d.mood)) emotionType = 'negative';
 
         sleepRecord[index] = {
           day: dateRangeLabels[index],
-          duration: Math.min((d.duration || 0) / 10 * 100, 100), // Normalize to 0-100%
+          duration: Math.min((d.duration || 0) / 10 * 100, 100), 
           emotion: emotionType
         };
     }

@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sleepDayLabel: {
-    width: 30,
+    width: 45,
     fontFamily: 'jf-openhuninn-2.0',
     fontSize: 12,
     color: '#737373',
